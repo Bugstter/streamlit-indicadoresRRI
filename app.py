@@ -30,8 +30,11 @@ if uploaded_file is not None:
             rri_df[column] = rri_df[column].astype(str).str.lower().str.strip()
 
 # Convertir 'fecha_cita_destino' en datetime para asegurar que todas las fechas sean válidas
-rri_df['fecha_cita_destino'] = pd.to_datetime(rri_df['fecha_cita_destino'], errors='coerce')
-
+if 'fecha_cita_destino' in rri_df.columns:
+    rri_df['fecha_cita_destino'] = pd.to_datetime(rri_df['fecha_cita_destino'], errors='coerce')
+else:
+    st.warning("La columna 'fecha_cita_destino' no está presente en el archivo CSV.")
+    
 # Limpieza de 'paciente_notificado': Convertir valores 'nan', espacios, y otros caracteres invisibles a NaN
 rri_df['paciente_notificado'] = rri_df['paciente_notificado'].replace(['nan', '', ' '], np.nan)
 rri_df['paciente_notificado'] = rri_df['paciente_notificado'].str.strip().replace('', np.nan)
