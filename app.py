@@ -63,7 +63,7 @@ if rri_df is not None and not rri_df.empty:
         total_references_sent = len(rri_df)
         st.write(f"Total de referencias enviadas: {total_references_sent}")
 
-        # Aquí puedes agregar el resto de los cálculos de indicadores
+        # Agregar el resto de cálculos e indicadores aquí
         # ...
 
     except Exception as e:
@@ -71,8 +71,9 @@ if rri_df is not None and not rri_df.empty:
 else:
     if uploaded_file is None:
         st.info("Por favor, sube un archivo CSV para comenzar.")
-    elif rri_df is not None and rri_df.empty:
-        st.warning("El archivo cargado está vacío. Por favor, sube un archivo válido.")
+    elif rri_df is None or rri_df.empty:
+        st.warning("El archivo cargado está vacío o no contiene datos válidos.")
+
    
 # Cálculo de indicadores
 # 1. % Referencias de CE Rechazadas
