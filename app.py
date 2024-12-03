@@ -15,7 +15,9 @@ st.title("Análisis de Referencias RRI")
 # Subir archivo CSV
 uploaded_file = st.file_uploader("Sube un archivo CSV", type=["csv"])
 
-# Verifica si se ha cargado un archivo
+# Inicializar rri_df como None para evitar errores de referencia
+rri_df = None
+
 if uploaded_file is not None:
     try:
         # Leer el archivo CSV
@@ -25,8 +27,8 @@ if uploaded_file is not None:
         rri_df.columns = rri_df.columns.str.lower()
 
         # Standardize column values to lowercase for consistent matching and remove spaces
-        for column in ['atencion_origen', 'referencia_rechazada', 'referencia_oportuna', 'referencia_efectiva', 
-                       'retorno_cont_seguimiento', 'motivo_no_notificacion', 'area_origen', 'area_remision', 
+        for column in ['atencion_origen', 'referencia_rechazada', 'referencia_oportuna', 'referencia_efectiva',
+                       'retorno_cont_seguimiento', 'motivo_no_notificacion', 'area_origen', 'area_remision',
                        'paciente_notificado', 'referencia_pertinente']:
             if column in rri_df.columns:
                 rri_df[column] = rri_df[column].astype(str).str.lower().str.strip()
@@ -51,14 +53,24 @@ if uploaded_file is not None:
             )
             rri_df.loc[condicion_imputacion, 'paciente_notificado'] = 'no'
 
+    except Exception as e:
+        st.error(f"Error procesando el archivo: {e}")
+
+# Solo se ejecutan cálculos si rri_df fue definido correctamente
+if rri_df is not None:
+    try:
         # Realizar cálculos de indicadores
         total_references_sent = len(rri_df)
         st.write(f"Total de referencias enviadas: {total_references_sent}")
 
+        # Aquí puedes agregar el resto de los cálculos de indicadores
+        # ...
+
     except Exception as e:
-        st.error(f"Error procesando el archivo: {e}")
+        st.error(f"Error durante el cálculo de indicadores: {e}")
 else:
     st.info("Por favor, sube un archivo CSV para comenzar.")
+
 
         
 # Cálculo de indicadores
