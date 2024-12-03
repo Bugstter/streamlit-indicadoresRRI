@@ -54,6 +54,10 @@ if uploaded_file is not None:
         # Realizar cálculos de indicadores
         total_references_sent = len(rri_df)
         st.write(f"Total de referencias enviadas: {total_references_sent}")
+         except Exception as e:
+        st.error(f"Error procesando el archivo: {e}")
+else:
+    st.info("Por favor, sube un archivo CSV para comenzar.")
         
 # Cálculo de indicadores
 # 1. % Referencias de CE Rechazadas
@@ -334,7 +338,3 @@ plt.tight_layout()
 
 # Mostrar el gráfico con predicciones
 st.pyplot(plt)
-    except Exception as e:
-        st.error(f"Error procesando el archivo: {e}")
-else:
-    st.info("Por favor, sube un archivo CSV para comenzar.")
