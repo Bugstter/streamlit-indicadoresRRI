@@ -15,6 +15,7 @@ st.title("Análisis de Referencias RRI")
 # Subir archivo CSV
 uploaded_file = st.file_uploader("Sube un archivo CSV", type=["csv"])
 
+# Verifica si se ha cargado un archivo
 if uploaded_file is not None:
     try:
         # Leer el archivo CSV
@@ -49,8 +50,10 @@ if uploaded_file is not None:
                 (rri_df['paciente_notificado'].isna())
             )
             rri_df.loc[condicion_imputacion, 'paciente_notificado'] = 'no'
-    except Exception as e:
-        st.error(f"Error procesando el archivo: {e}")
+
+        # Realizar cálculos de indicadores
+        total_references_sent = len(rri_df)
+        st.write(f"Total de referencias enviadas: {total_references_sent}")
         
 # Cálculo de indicadores
 # 1. % Referencias de CE Rechazadas
@@ -331,3 +334,8 @@ plt.tight_layout()
 
 # Mostrar el gráfico con predicciones
 st.pyplot(plt)
+
+except Exception as e:
+        st.error(f"Error procesando el archivo: {e}")
+else:
+    st.info("Por favor, sube un archivo CSV para comenzar.")
