@@ -334,8 +334,3 @@ plt.tight_layout()
 
 # Mostrar el gráfico con predicciones
 st.pyplot(plt)
-
-except Exception as e:
-        st.error(f"Error procesando el archivo: {e}")
-else:
-    st.info("Por favor, sube un archivo CSV para comenzar.")
