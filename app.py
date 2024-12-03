@@ -27,10 +27,6 @@ rri_df.columns = rri_df.columns.str.lower()
 for column in ['atencion_origen', 'referencia_rechazada', 'referencia_oportuna', 'referencia_efectiva', 'retorno_cont_seguimiento', 'motivo_no_notificacion', 'area_origen', 'area_remision', 'paciente_notificado', 'referencia_pertinente']:
     if column in rri_df.columns:
         rri_df[column] = rri_df[column].astype(str).str.lower().str.strip()
-         for col in required_columns:
-            if col not in rri_df.columns:
-                st.error(f"Falta la columna requerida: {col}")
-                st.stop()
 
 # Convertir 'fecha_cita_destino' en datetime para asegurar que todas las fechas sean válidas
 rri_df['fecha_cita_destino'] = pd.to_datetime(rri_df['fecha_cita_destino'], errors='coerce')
