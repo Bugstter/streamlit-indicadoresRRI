@@ -16,36 +16,37 @@ st.title("Análisis de Referencias RRI")
 uploaded_file = st.file_uploader("Sube un archivo CSV", type=["csv"])
 
 if uploaded_file is not None:
-    # Leer el archivo CSV
-    rri_df = pd.read_csv(uploaded_file, low_memory=False)
+    try:
+        # Leer el archivo CSV
+        rri_df = pd.read_csv(uploaded_file, low_memory=False)
+        
+        # Verificar si el DataFrame no está vacío
+        if rri_df.empty:
+            st.error("El archivo cargado está vacío. Por favor, sube un archivo válido.")
+        else:
+            # Convert all column names to lowercase for easier access
+            rri_df.columns = rri_df.columns.str.lower()
 
-    # Convert all column names to lowercase for easier access
-    rri_df.columns = rri_df.columns.str.lower()
+            # Standardize column values to lowercase for consistent matching and remove spaces
+            for column in ['atencion_origen', 'referencia_rechazada', 'referencia_oportuna', 'referencia_efectiva', 
+                           'retorno_cont_seguimiento', 'motivo_no_notificacion', 'area_origen', 'area_remision', 
+                           'paciente_notificado', 'referencia_pertinente']:
+                if column in rri_df.columns:
+                    rri_df[column] = rri_df[column].astype(str).str.lower().str.strip()
 
-    # Standardize column values to lowercase for consistent matching and remove spaces
-    for column in ['atencion_origen', 'referencia_rechazada', 'referencia_oportuna', 'referencia_efectiva', 
-                   'retorno_cont_seguimiento', 'motivo_no_notificacion', 'area_origen', 'area_remision', 
-                   'paciente_notificado', 'referencia_pertinente']:
-        if column in rri_df.columns:
-            rri_df[column] = rri_df[column].astype(str).str.lower().str.strip()
+            # Convertir 'fecha_cita_destino' en datetime para asegurar que todas las fechas sean válidas
+            if 'fecha_cita_destino' in rri_df.columns:
+                rri_df['fecha_cita_destino'] = pd.to_datetime(rri_df['fecha_cita_destino'], errors='coerce')
+            else:
+                st.warning("El archivo cargado no contiene la columna 'fecha_cita_destino'.")
+            
+            # Resto del código que depende de rri_df...
 
-# Convertir 'fecha_cita_destino' en datetime para asegurar que todas las fechas sean válidas
-if 'fecha_cita_destino' in rri_df.columns:
-    rri_df['fecha_cita_destino'] = pd.to_datetime(rri_df['fecha_cita_destino'], errors='coerce')
+    except Exception as e:
+        st.error(f"Error al procesar el archivo: {e}")
 else:
-    st.warning("La columna 'fecha_cita_destino' no está presente en el archivo CSV.")
-    
-# Limpieza de 'paciente_notificado': Convertir valores 'nan', espacios, y otros caracteres invisibles a NaN
-rri_df['paciente_notificado'] = rri_df['paciente_notificado'].replace(['nan', '', ' '], np.nan)
-rri_df['paciente_notificado'] = rri_df['paciente_notificado'].str.strip().replace('', np.nan)
+    st.warning("Por favor, sube un archivo CSV válido para continuar.")
 
-# Imputar "no" en 'paciente_notificado' solo si 'fecha_cita_destino' tiene una fecha asignada y 'paciente_notificado' es nulo
-condicion_imputacion = (
-    (rri_df['fecha_cita_destino'].notna()) &
-    (rri_df['area_remision'] == 'consulta') &
-    (rri_df['paciente_notificado'].isna())
-)
-rri_df.loc[condicion_imputacion, 'paciente_notificado'] = 'no'
 
 # Cálculo de indicadores
 # 1. % Referencias de CE Rechazadas
