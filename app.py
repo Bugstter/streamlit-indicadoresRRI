@@ -16,7 +16,6 @@ st.title("Análisis de Referencias RRI")
 uploaded_file = st.file_uploader("Sube un archivo CSV", type=["csv"])
 
 if uploaded_file is not None:
-    try:
     # Leer el archivo CSV
     rri_df = pd.read_csv(uploaded_file, low_memory=False)
 
