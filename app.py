@@ -56,8 +56,8 @@ if uploaded_file is not None:
     except Exception as e:
         st.error(f"Error procesando el archivo: {e}")
 
-# Solo se ejecutan cálculos si rri_df fue definido correctamente
-if rri_df is not None:
+# Validar si rri_df fue definido correctamente y contiene datos
+if rri_df is not None and not rri_df.empty:
     try:
         # Realizar cálculos de indicadores
         total_references_sent = len(rri_df)
@@ -69,10 +69,11 @@ if rri_df is not None:
     except Exception as e:
         st.error(f"Error durante el cálculo de indicadores: {e}")
 else:
-    st.info("Por favor, sube un archivo CSV para comenzar.")
-
-
-        
+    if uploaded_file is None:
+        st.info("Por favor, sube un archivo CSV para comenzar.")
+    elif rri_df is not None and rri_df.empty:
+        st.warning("El archivo cargado está vacío. Por favor, sube un archivo válido.")
+   
 # Cálculo de indicadores
 # 1. % Referencias de CE Rechazadas
 total_references_sent = len(rri_df)
