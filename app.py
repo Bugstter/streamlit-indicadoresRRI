@@ -94,34 +94,12 @@ def process_consulta_externa(file):
         "% Referencias enviadas a CE no agendadas": percent_ce_no_agendadas,
         "Total de referencias enviadas": total_references_sent
     }
+    
+    return df, indicators
 
-    # Mostrar métricas en Streamlit
-    st.subheader("📌 Indicadores Clave")
-    for key, value in indicators.items():
-        if "%" in key:
-            st.metric(label=key, value=f"{value:.2f}%")
-        else:
-            st.metric(label=key, value=value)
-
-    # Generar gráfico de indicadores en Streamlit
-    st.subheader("📊 Gráfico de Indicadores")
-
-    percentage_indicators = {k: v for k, v in indicators.items() if '%' in k}
-    labels = list(percentage_indicators.keys())
-    values = list(percentage_indicators.values())
-
-    fig, ax = plt.subplots(figsize=(10, 6))
-    ax.barh(labels, values)
-    ax.set_xlabel("Porcentaje (%)")
-    ax.set_title("Indicadores de Referencias")
-    ax.invert_yaxis()
-    st.pyplot(fig)
-
-    # Mostrar DataFrame en Streamlit
-    st.subheader("📋 Datos Procesados")
-    st.dataframe(rri_df)
-else:
-    st.info("📥 Por favor, sube un archivo CSV para analizar los datos.")
+ except Exception as e:
+        st.error(f"⚠️ Error en archivo de Consulta Externa: {str(e)}")
+        return None, None
 
 # Función para procesar archivos de Emergencia
 def process_emergencia(file):
