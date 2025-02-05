@@ -20,10 +20,6 @@ if uploaded_file is not None:
         # Leer el archivo CSV
         rri_df = pd.read_csv(uploaded_file, low_memory=False)
 
-# Subir archivo CSV
-rri_data_path = '/content/PIV CE METRO (1).csv'
-rri_df = pd.read_csv(rri_data_path, low_memory=False)
-
 # Convert all column names to lowercase for easier access
 rri_df.columns = rri_df.columns.str.lower()
 
