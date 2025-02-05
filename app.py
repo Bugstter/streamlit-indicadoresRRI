@@ -1,10 +1,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
-from sklearn.linear_model import LinearRegression
-from sklearn.preprocessing import PolynomialFeatures
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
+import datetime
 import streamlit as st
 
 #para activar el host: streamlit run "c:/Users/sis/Desktop/RRI front.py"
@@ -22,11 +19,6 @@ if uploaded_file is not None:
     try:
         # Leer el archivo CSV
         rri_df = pd.read_csv(uploaded_file, low_memory=False)
-
-       import pandas as pd
-import matplotlib.pyplot as plt
-import numpy as np
-import datetime
 
 # Subir archivo CSV
 rri_data_path = '/content/PIV CE METRO (1).csv'
