@@ -6,19 +6,26 @@ import streamlit as st
 
 #para activar el host: streamlit run "c:/Users/sis/Desktop/RRI front.py"
 
-# Título de la aplicación
-st.title("Análisis de Referencias RRI")
+# Streamlit App
+st.title("Dashboard de Análisis de Referencias")
+st.write("Sube un archivo CSV para analizar las referencias médicas")
 
-# Subir archivo CSV
-uploaded_file = st.file_uploader("Sube un archivo CSV", type=["csv"])
+uploaded_file = st.file_uploader("Subir archivo CSV", type=["csv"])
 
+if uploaded_file:
+    df = load_data(uploaded_file)
+    st.write("### Vista Previa de los Datos")
+    st.dataframe(df.head())
+    
+    st.write("### Indicadores Calculados")
+    indicators = calculate_indicators(df)
+    st.write(indicators)
+    
+    st.write("### Visualización de Indicadores")
+    plot_indicators(indicators)
+    
 # Inicializar rri_df como None para evitar errores de referencia
 rri_df = None
-
-if uploaded_file is not None:
-    try:
-        # Leer el archivo CSV
-        rri_df = pd.read_csv(uploaded_file, low_memory=False)
 
 # Convert all column names to lowercase for easier access
 rri_df.columns = rri_df.columns.str.lower()
