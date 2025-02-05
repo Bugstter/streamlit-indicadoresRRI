@@ -4,23 +4,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 import datetime
 
-# Configuración inicial
-st.title("📊 Dashboard de Referencias - Consulta Externa y Emergencia")
+# Configurar título de la app
+st.title("📊 Dashboard de Indicadores de Referencias CE")
 
-# Sección de subida de archivos
-st.subheader("📂 Subir Archivos CSV")
+# Subir archivo CSV
+uploaded_file = st.file_uploader("📂 Subir archivo CSV", type=["csv"])
 
-col1, col2 = st.columns(2)
-with col1:
-    uploaded_ce = st.file_uploader("📄 Subir archivo de **Consulta Externa**", type=["csv"])
-with col2:
-    uploaded_em = st.file_uploader("📄 Subir archivo de **Emergencia**", type=["csv"])
-
-# Función para procesar archivos de Consulta Externa
-def process_consulta_externa(file):
-    if file is None:
-        return None, None
-
+if uploaded_file is not None:
     # Cargar datos
     rri_df = pd.read_csv(uploaded_file, low_memory=False)
     rri_df.columns = rri_df.columns.str.lower()  # Convertir nombres de columnas a minúsculas
@@ -94,88 +84,31 @@ def process_consulta_externa(file):
         "% Referencias enviadas a CE no agendadas": percent_ce_no_agendadas,
         "Total de referencias enviadas": total_references_sent
     }
-    
-    return df, indicators
 
- except Exception as e:
-        st.error(f"⚠️ Error en archivo de Consulta Externa: {str(e)}")
-        return None, None
+    # Mostrar métricas en Streamlit
+    st.subheader("📌 Indicadores Clave")
+    for key, value in indicators.items():
+        if "%" in key:
+            st.metric(label=key, value=f"{value:.2f}%")
+        else:
+            st.metric(label=key, value=value)
 
-# Función para procesar archivos de Emergencia
-def process_emergencia(file):
-    if file is None:
-        return None, None
+    # Generar gráfico de indicadores en Streamlit
+    st.subheader("📊 Gráfico de Indicadores")
 
-    try:
-        df = pd.read_csv(file, low_memory=False)
-        df.columns = df.columns.str.lower()
-
-        cols_to_clean = ['referencia_rechazada', 'referencia_oportuna', 'referencia_efectiva', 'area_origen', 
-                         'area_remision', 'posee_retorno', 'paciente_notificado', 'referencia_pertinente']
-        for col in cols_to_clean:
-            if col in df.columns:
-                df[col] = df[col].astype(str).str.lower().str.strip()
-
-        df['fecha_cita_destino'] = pd.to_datetime(df['fecha_cita_destino'], errors='coerce')
-
-        total_refs = len(df)
-        if total_refs == 0:
-            return None, None  
-
-        # Cálculo de % Referencias Efectivas en Emergencia
-        referencias_pertinentes = df[df['referencia_pertinente'].isin(['si', 'no'])]
-        percent_pertinentes = (len(referencias_pertinentes) / len(df)) * 100 if len(df) > 0 else 0
-
-        referencias_con_retorno = referencias_pertinentes[referencias_pertinentes['posee_retorno'] == 'si']
-        percent_con_retorno = (len(referencias_con_retorno) / len(referencias_pertinentes)) * 100 if len(referencias_pertinentes) > 0 else 0
-
-        referencias_oportunas = referencias_pertinentes[referencias_pertinentes['referencia_oportuna'] == 'si']
-        percent_oportunas = (len(referencias_oportunas) / len(referencias_pertinentes)) * 100 if len(referencias_pertinentes) > 0 else 0
-
-        referencias_efectivas = df[df['referencia_efectiva'] == 'si']
-        percent_efectivas = (len(referencias_efectivas) / len(df)) * 100 if len(df) > 0 else 0
-
-        indicators = {
-            "% Referencias Efectivas": percent_efectivas,
-            "% Referencias Evaluadas como Pertinentes": percent_pertinentes,
-            "% Referencias con Retorno": percent_con_retorno,
-            "% Referencias Evaluadas como Oportunas": percent_oportunas,
-            "Total Referencias": total_refs
-        }
-
-        return df, indicators
-
-    except Exception as e:
-        st.error(f"⚠️ Error en archivo de Emergencia: {str(e)}")
-        return None, None
-
-# Procesar archivos
-data_ce, indicators_ce = process_consulta_externa(uploaded_ce)
-data_em, indicators_em = process_emergencia(uploaded_em)
-
-# Verificar y mostrar resultados
-if data_ce:
-    st.subheader("📊 Indicadores - Consulta Externa")
-    st.json(indicators_ce)
-    
-if data_em:
-    st.subheader("📊 Indicadores - Emergencia")
-    st.json(indicators_em)
-
-# Comparación visual si ambos archivos están cargados
-if data_ce and data_em:
-    st.subheader("📊 Comparación de Indicadores")
-
-    labels = list(indicators_ce.keys())[:-1]  # Excluir "Total Referencias"
-    values_ce = [indicators_ce[k] for k in labels]
-    values_em = [indicators_em[k] for k in labels]
+    percentage_indicators = {k: v for k, v in indicators.items() if '%' in k}
+    labels = list(percentage_indicators.keys())
+    values = list(percentage_indicators.values())
 
     fig, ax = plt.subplots(figsize=(10, 6))
-    ax.barh(labels, values_ce, label="Consulta Externa", alpha=0.7)
-    ax.barh(labels, values_em, label="Emergencia", alpha=0.7)
+    ax.barh(labels, values)
     ax.set_xlabel("Porcentaje (%)")
-    ax.set_title("Comparación de Indicadores")
-    ax.legend()
+    ax.set_title("Indicadores de Referencias")
     ax.invert_yaxis()
-
     st.pyplot(fig)
+
+    # Mostrar DataFrame en Streamlit
+    st.subheader("📋 Datos Procesados")
+    st.dataframe(rri_df)
+else:
+    st.info("📥 Por favor, sube un archivo CSV para analizar los datos.")
