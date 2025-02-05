@@ -1,119 +1,179 @@
-import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 import datetime
 
-# Configuración inicial
-st.title("📊 Dashboard de Referencias - Consulta Externa y Emergencia")
+# Subir archivo CSV
+rri_data_path = '/content/PIV CE METRO (1).csv'
+rri_df = pd.read_csv(rri_data_path, low_memory=False)
 
-# Sección de subida de archivos
-st.subheader("📂 Subir Archivos CSV")
+# Convert all column names to lowercase for easier access
+rri_df.columns = rri_df.columns.str.lower()
 
-col1, col2 = st.columns(2)
-with col1:
-    uploaded_ce = st.file_uploader("📄 Subir archivo de **Consulta Externa**", type=["csv"])
-with col2:
-    uploaded_em = st.file_uploader("📄 Subir archivo de **Emergencia**", type=["csv"])
+# Standardize column values to lowercase for consistent matching and remove spaces
+for column in ['atencion_origen', 'referencia_rechazada', 'referencia_oportuna', 'referencia_efectiva', 'retorno_cont_seguimiento', 'motivo_no_notificacion', 'area_origen', 'area_remision', 'posee_retorno', 'paciente_notificado', 'referencia_pertinente']:
+    if column in rri_df.columns:
+        rri_df[column] = rri_df[column].astype(str).str.lower().str.strip()
 
-# Función para procesar archivos
-def process_file(file, tipo):
-    if file is None:
-        return None, None
+# Convertir 'fecha_cita_destino' en datetime para asegurar que todas las fechas sean válidas
+rri_df['fecha_cita_destino'] = pd.to_datetime(rri_df['fecha_cita_destino'], errors='coerce')
 
-    try:
-        df = pd.read_csv(file, low_memory=False)
-        df.columns = df.columns.str.lower()
+# Obtener la fecha de hoy
+fecha_hoy = datetime.datetime.today()
 
-        cols_to_clean = ['referencia_rechazada', 'referencia_oportuna', 'referencia_efectiva', 'area_origen',
-                         'area_remision', 'posee_retorno', 'paciente_notificado', 'referencia_pertinente']
+# Limpieza de 'paciente_notificado': Convertir valores 'nan', espacios, y otros caracteres invisibles a NaN
+# Reemplazar cualquier valor que sea 'nan' como string, espacios o vacíos con NaN
+rri_df['paciente_notificado'] = rri_df['paciente_notificado'].replace(['nan', '', ' '], np.nan)
+# Adicionalmente, quitar espacios en blanco y tabulaciones y convertir celdas vacías a NaN
+rri_df['paciente_notificado'] = rri_df['paciente_notificado'].str.strip().replace('', np.nan)
 
-        for col in cols_to_clean:
-            if col in df.columns:
-                df[col] = df[col].astype(str).str.lower().str.strip()
+# Imputar "no" en 'paciente_notificado' solo si 'fecha_cita_destino' tiene una fecha asignada y 'paciente_notificado' es nulo
+condicion_imputacion = (
+    (rri_df['fecha_cita_destino'].notna()) &
+    (rri_df['area_remision'] == 'consulta') &
+    (rri_df['paciente_notificado'].isna())
+)
+rri_df.loc[condicion_imputacion, 'paciente_notificado'] = 'no'
 
-        df['fecha_cita_destino'] = pd.to_datetime(df['fecha_cita_destino'], errors='coerce')
+# Calculate indicators
+# 1. % Referencias de CE Rechazadas
+total_references_sent = len(rri_df)
+ce_rechazadas = rri_df[rri_df['referencia_rechazada'] == 'si']
+if total_references_sent > 0:
+    percent_ce_rechazadas = (len(ce_rechazadas) / total_references_sent) * 100
+else:
+    percent_ce_rechazadas = 0
 
-        total_refs = len(df)
+# 2. % Referencias de CE Agendadas
+ce_total = rri_df[rri_df['area_origen'] == 'consulta externa']
+ce_no_rechazadas = ce_total[ce_total['referencia_rechazada'] != 'si']
+ce_agendadas = ce_no_rechazadas[ce_no_rechazadas['fecha_cita_destino'].notna()]
+if len(ce_no_rechazadas) > 0:
+    percent_ce_agendadas = (len(ce_agendadas) / len(ce_no_rechazadas)) * 100
+else:
+    percent_ce_agendadas = 0
 
-        # Indicadores generales
-        referencias_efectivas = df[df['referencia_efectiva'] == 'si']
-        percent_efectivas = (len(referencias_efectivas) / len(df)) * 100 if len(df) > 0 else 0
+# 3. % Referencias de CE sin registro de notificación
+# Total de referencias enviadas a consulta externa con cita asignada en la columna "fecha_cita_destino" y con "area_remision" igual a "Consulta"
+ce_agendadas = ce_total[(ce_total['area_remision'] == 'consulta') & (ce_total['fecha_cita_destino'].notna())]
 
-        referencias_pertinentes = df[df['referencia_pertinente'] == 'si']
-        percent_pertinentes = (len(referencias_pertinentes) / len(df)) * 100 if len(df) > 0 else 0
+# Total de referencias enviadas a consulta externa con paciente no notificado
+ce_sin_notificacion = ce_agendadas[ce_agendadas['paciente_notificado'] == 'no']
 
-        referencias_oportunas = df[df['referencia_oportuna'] == 'si']
-        percent_oportunas = (len(referencias_oportunas) / len(df)) * 100 if len(df) > 0 else 0
+# Cálculo del porcentaje de referencias sin notificación
+if len(ce_agendadas) > 0:
+    percent_ce_sin_notificacion = (len(ce_sin_notificacion) / len(ce_agendadas)) * 100
+else:
+    percent_ce_sin_notificacion = 0
 
-        # Indicadores específicos por tipo
-        if tipo == "consulta externa":
-            ce_rechazadas = df[df['referencia_rechazada'] == 'si']
-            percent_rechazadas = (len(ce_rechazadas) / total_refs) * 100 if total_refs > 0 else 0
+# **Cálculo normal sin filtro de fecha**
+ce_total = rri_df[rri_df['area_origen'] == 'consulta externa']
+ce_no_rechazadas = ce_total[ce_total['referencia_rechazada'] != 'si']
 
-            ce_total = df[df['area_origen'] == 'consulta externa']
-            ce_no_rechazadas = ce_total[ce_total['referencia_rechazada'] != 'si']
-            ce_agendadas = ce_no_rechazadas[ce_no_rechazadas['fecha_cita_destino'].notna()]
-            percent_agendadas = (len(ce_agendadas) / len(ce_no_rechazadas)) * 100 if len(ce_no_rechazadas) > 0 else 0
+# **Cálculo de referencias efectivas solo con fechas menores a hoy**
+rri_df_filtrado = rri_df[rri_df['fecha_cita_destino'] < fecha_hoy]
 
-            ce_sin_notificacion = ce_agendadas[ce_agendadas['paciente_notificado'] == 'no']
-            percent_sin_notificacion = (len(ce_sin_notificacion) / len(ce_agendadas)) * 100 if len(ce_agendadas) > 0 else 0
+ce_total_filtrado = rri_df_filtrado[rri_df_filtrado['area_origen'] == 'consulta externa']
+ce_no_rechazadas_filtrado = ce_total_filtrado[ce_total_filtrado['referencia_rechazada'] != 'si']
+ce_efectivas_filtrado = ce_no_rechazadas_filtrado[ce_no_rechazadas_filtrado['referencia_efectiva'] == 'si']
 
-            indicators = {
-                "% Referencias Rechazadas": percent_rechazadas,
-                "% Referencias Agendadas": percent_agendadas,
-                "% Referencias Efectivas": percent_efectivas,
-                "% Referencias sin Notificación": percent_sin_notificacion,
-                "% Referencias Evaluadas como Oportunas": percent_oportunas,
-                "% Referencias Evaluadas como Pertinentes": percent_pertinentes,
-                "Total Referencias": total_refs
-            }
-        
-        else:  # Emergencia
-            referencias_pertinentes_con_retorno = referencias_pertinentes[referencias_pertinentes['posee_retorno'] == 'si']
-            percent_con_retorno = (len(referencias_pertinentes_con_retorno) / len(referencias_pertinentes)) * 100 if len(referencias_pertinentes) > 0 else 0
+# 4. % Referencias de CE efectivas (con filtro de fecha)**
+percent_ce_efectivas = (len(ce_efectivas_filtrado) / len(ce_no_rechazadas_filtrado)) * 100 if len(ce_no_rechazadas_filtrado) > 0 else 0
 
-            indicators = {
-                "% Referencias de Emergencia Efectivas": percent_efectivas,
-                "% Referencias Evaluadas como Oportunas": percent_oportunas,
-                "% Referencias Evaluadas como Pertinentes": percent_pertinentes,
-                "% Referencias con Retorno": percent_con_retorno,
-                "Total Referencias": total_refs
-            }
+# 5. % Referencias de CE efectivas con retorno (con filtro de fecha)**
+# Normalizar la columna 'posee_retorno' para eliminar inconsistencias
+rri_df_filtrado['posee_retorno'] = rri_df_filtrado['posee_retorno'].astype(str).str.lower().str.strip()
 
-        return df, indicators
+# Definir total de referencias efectivas en CE después del filtro de fecha
+total_ce_efectivas_filtrado = len(rri_df_filtrado[
+    (rri_df_filtrado['area_origen'] == 'consulta externa') &
+    (rri_df_filtrado['referencia_rechazada'] != 'si') &
+    (rri_df_filtrado['referencia_efectiva'] == 'si')
+])
 
-    except Exception as e:
-        st.error(f"⚠️ Error en archivo de {tipo}: {str(e)}")
-        return None, None
+# Filtrar referencias efectivas con retorno en CE después del filtro de fecha
+ce_efectivas_con_retorno = rri_df_filtrado[
+    (rri_df_filtrado['area_origen'] == 'consulta externa') &
+    (rri_df_filtrado['referencia_rechazada'] != 'si') &
+    (rri_df_filtrado['referencia_efectiva'] == 'si') &
+    (rri_df_filtrado['posee_retorno'] == 'si')
+]
 
-# Procesar archivos
-data_ce, indicators_ce = process_file(uploaded_ce, "consulta externa")
-data_em, indicators_em = process_file(uploaded_em, "emergencia")
+# Calcular el porcentaje corregido
+percent_ce_efectivas_con_retorno = (len(ce_efectivas_con_retorno) / total_ce_efectivas_filtrado) * 100 if total_ce_efectivas_filtrado > 0 else 0
 
-# Mostrar resultados
-if indicators_ce:
-    st.subheader("📊 Indicadores - Consulta Externa")
-    st.json(indicators_ce)
+# 6. % de referencias enviadas a CE no agendadas
+# Total de referencias enviadas a consulta externa sin fecha de cita asignada y que no fueron rechazadas
+ce_no_agendadas = rri_df[(rri_df['area_origen'] == 'consulta externa') & (rri_df['fecha_cita_destino'].isna())]
+if len(rri_df[(rri_df['area_origen'] == 'consulta externa') & (rri_df['referencia_rechazada'] == 'no')]) > 0:
+    percent_ce_no_agendadas = (len(ce_no_agendadas) / len(rri_df[(rri_df['area_origen'] == 'consulta externa') & (rri_df['referencia_rechazada'] == 'no')])) * 100
+else:
+    percent_ce_no_agendadas = 0
 
-if indicators_em:
-    st.subheader("📊 Indicadores - Emergencia")
-    st.json(indicators_em)
+# 9. % Referencias Agendadas por establecimientos receptores
+# Total de referencias recibidas en "area_remision" con valor "consulta" y "fecha_cita_destino" asignada entre el total de referencias que no fueron rechazadas
+referencias_recibidas = rri_df[(rri_df['area_remision'] == 'consulta') & (rri_df['fecha_cita_destino'].notna())]
+referencias_no_rechazadas = rri_df[rri_df['referencia_rechazada'] == 'no']
+if len(referencias_no_rechazadas) > 0:
+    percent_referencias_agendadas_por_establecimientos = (len(referencias_recibidas) / len(referencias_no_rechazadas)) * 100
+else:
+    percent_referencias_agendadas_por_establecimientos = 0
 
-# Comparación visual si ambos archivos están cargados
-if indicators_ce and indicators_em:
-    st.subheader("📊 Comparación de Indicadores")
+# 10. % de referencias recibidas en CE no agendadas
+# Total de referencias recibidas en CE sin fecha de cita asignada entre el total de referencias recibidas en CE no rechazadas
+ce_recibidas_no_agendadas = ce_no_rechazadas[ce_no_rechazadas['fecha_cita_destino'].isna()]
+if len(ce_no_rechazadas) > 0:
+    percent_ce_recibidas_no_agendadas = (len(ce_recibidas_no_agendadas) / len(ce_no_rechazadas)) * 100
+else:
+    percent_ce_recibidas_no_agendadas = 0
 
-    labels = list(indicators_ce.keys())[:-1]  # Excluir "Total Referencias"
-    values_ce = [indicators_ce[k] for k in labels]
-    values_em = [indicators_em[k] for k in labels]
+# 13. % Referencias a CE evaluadas como oportunas**
+ce_oportunas = ce_efectivas_filtrado[ce_efectivas_filtrado['referencia_oportuna'] == 'si']
+percent_ce_oportunas = (len(ce_oportunas) / len(ce_efectivas_filtrado)) * 100 if len(ce_efectivas_filtrado) > 0 else 0
 
-    fig, ax = plt.subplots(figsize=(10, 6))
-    ax.barh(labels, values_ce, label="Consulta Externa", alpha=0.7)
-    ax.barh(labels, values_em, label="Emergencia", alpha=0.7)
-    ax.set_xlabel("Porcentaje (%)")
-    ax.set_title("Comparación de Indicadores")
-    ax.legend()
-    ax.invert_yaxis()
+# 14.% Referencias a CE evaluadas como pertinentes**
+ce_pertinentes = ce_efectivas_filtrado[ce_efectivas_filtrado['referencia_pertinente'] == 'si']
+percent_ce_pertinentes = (len(ce_pertinentes) / len(ce_efectivas_filtrado)) * 100 if len(ce_efectivas_filtrado) > 0 else 0
 
-    st.pyplot(fig)
+# Print all the calculated indicators
+print(f"% Referencias de CE Rechazadas: {percent_ce_rechazadas:.2f}%")
+print(f"% Referencias de CE Agendadas: {percent_ce_agendadas:.2f}%")
+print(f"% Referencias de CE sin registro de notificacion: {percent_ce_sin_notificacion:.2f}%")
+print(f"% Referencias de CE efectivas: {percent_ce_efectivas:.2f}%")
+print(f"% Referencias de CE efectivas con retorno (con citas pasadas): {percent_ce_efectivas_con_retorno:.2f}%")
+print(f"% Referencias enviadas a CE no agendadas: {percent_ce_no_agendadas:.2f}%")
+print(f"% Referencias Agendadas por establecimientos receptores: {percent_referencias_agendadas_por_establecimientos:.2f}%")
+print(f"% de referencias recibidas en CE no agendadas: {percent_ce_recibidas_no_agendadas:.2f}%")
+print(f"% Referencias enviadas a CE evaluadas como oportunas: {percent_ce_oportunas:.2f}%")
+print(f"% Referencias enviadas a CE evaluadas como pertinentes: {percent_ce_pertinentes:.2f}%")
+print(f"Total de referencias enviadas: {total_references_sent}")
+
+# Create a dictionary to store the indicators and their values
+indicators = {
+    "% Referencias de CE Rechazadas": percent_ce_rechazadas,
+    "% Referencias de CE Agendadas": percent_ce_agendadas,
+    "% Referencias de CE sin registro de notificacion": percent_ce_sin_notificacion,
+    "% Referencias de CE efectivas": percent_ce_efectivas,
+    "% Referencias de CE efectivas con retorno": percent_ce_efectivas_con_retorno,
+    "% Referencias enviadas a CE no agendadas": percent_ce_no_agendadas,
+    "% Referencias Agendadas por establecimientos receptores": percent_referencias_agendadas_por_establecimientos,
+    "% de referencias recibidas en CE no agendadas": percent_ce_recibidas_no_agendadas,
+    "Total de referencias enviadas": total_references_sent # Added total references to the dictionary
+}
+# Filtrar indicadores de porcentaje para graficar, excluyendo el total de referencias
+percentage_indicators = {k: v for k, v in indicators.items() if '%' in k}
+
+# Configurar los datos para el gráfico
+labels = list(percentage_indicators.keys())
+values = list(percentage_indicators.values())
+
+# Configurar el gráfico de barras
+plt.figure(figsize=(10, 8))
+plt.barh(labels, values)
+plt.xlabel('Porcentaje (%)')
+plt.title('Indicadores de Referencias')
+plt.gca().invert_yaxis()  # Invertir el eje y para que el primer elemento esté arriba
+plt.tight_layout()
+
+# Mostrar el gráfico
+plt.show()
