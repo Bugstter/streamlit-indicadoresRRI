@@ -123,3 +123,63 @@ if uploaded_file is not None:
     st.dataframe(rri_df)
 else:
     st.info("📥 Por favor, sube un archivo CSV para analizar los datos.")
+
+def cargar_datos(archivo):
+    """Carga y limpia el archivo CSV subido por el usuario."""
+    df = pd.read_csv(archivo, low_memory=False)
+    df.columns = df.columns.str.lower()
+    for column in ['atencion_origen', 'referencia_rechazada', 'referencia_oportuna', 'referencia_efectiva',
+                   'retorno_cont_seguimiento', 'motivo_no_notificacion', 'area_origen', 'area_remision',
+                   'posee_retorno', 'paciente_notificado', 'referencia_pertinente']:
+        if column in df.columns:
+            df[column] = df[column].astype(str).str.lower().str.strip()
+    df['fecha_cita_destino'] = pd.to_datetime(df['fecha_cita_destino'], errors='coerce')
+    return df
+
+def calcular_indicadores_ue(df):
+    """Calcula los indicadores para Unidad de Emergencia."""
+    emergencia_total = df[df['area_remision'] == 'emergencia']
+    referencias_pertinentes = emergencia_total[emergencia_total['referencia_pertinente'].isin(['si', 'no'])]
+    percent_referencias_emergencia_efectivas = (len(referencias_pertinentes) / len(emergencia_total)) * 100 if len(emergencia_total) > 0 else 0
+    
+    referencias_pertinentes_con_posee_retorno = referencias_pertinentes[referencias_pertinentes["posee_retorno"] == "si"]
+    percent_referencias_pertinentes_con_posee_retorno = (len(referencias_pertinentes_con_posee_retorno) / len(referencias_pertinentes)) * 100 if len(referencias_pertinentes) > 0 else 0
+    
+    ue_pertinentes = df[(df['area_remision'] == 'emergencia') & (df['referencia_pertinente'].isin(["si", "no"]))]
+    total_referencias_pertinentes = len(ue_pertinentes)
+    num_referencias_oportunas_pertinentes = len(ue_pertinentes[ue_pertinentes["referencia_oportuna"] == "si"])
+    percent_ue_oportunas = (num_referencias_oportunas_pertinentes / total_referencias_pertinentes) * 100 if total_referencias_pertinentes > 0 else 0
+    
+    num_referencias_pertinentes = len(ue_pertinentes[ue_pertinentes["referencia_pertinente"] == "si"])
+    percent_ue_pertinentes = (num_referencias_pertinentes / total_referencias_pertinentes) * 100 if total_referencias_pertinentes > 0 else 0
+    
+    indicadores = {
+        "% Referencias de emergencia efectivas": percent_referencias_emergencia_efectivas,
+        "% Referencias enviadas a UE evaluadas como oportunas": percent_ue_oportunas,
+        "% Referencias enviadas a UE evaluadas como pertinentes": percent_ue_pertinentes,
+        "% Referencias pertinentes con retorno (Posee Retorno)": percent_referencias_pertinentes_con_posee_retorno
+    }
+    return indicadores
+
+def graficar_indicadores(indicadores):
+    """Genera un gráfico de barras horizontal con los indicadores calculados."""
+    plt.figure(figsize=(10, 5))
+    plt.barh(list(indicadores.keys()), list(indicadores.values()))
+    plt.xlabel('Porcentaje (%)')
+    plt.title('Indicadores de Referencias en Unidad de Emergencia')
+    plt.gca().invert_yaxis()
+    plt.tight_layout()
+    st.pyplot(plt)
+
+# Configuración de la app en Streamlit
+st.title("Dashboard de Análisis de Referencias en Unidad de Emergencia")
+st.write("Sube un archivo CSV para analizar las referencias en unidad de emergencia.")
+
+archivo = st.file_uploader("Subir archivo CSV", type=["csv"])
+
+if archivo is not None:
+    df = cargar_datos(archivo)
+    indicadores = calcular_indicadores_ue(df)
+    st.write("### Indicadores Calculados")
+    st.write(pd.DataFrame.from_dict(indicadores, orient='index', columns=['Valor']))
+    graficar_indicadores(indicadores)
