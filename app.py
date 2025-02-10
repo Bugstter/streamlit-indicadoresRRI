@@ -5,10 +5,10 @@ import numpy as np
 import datetime
 
 # Configurar título de la app
-st.title("📊 Dashboard de Indicadores de Referencias CE")
+st.title("📊 Indicadores de Referencias CE")
 
 # Subir archivo CSV
-uploaded_file = st.file_uploader("📂 Subir archivo CSV", type=["csv"])
+uploaded_file = st.file_uploader("📂 Subir archivo CSV para analizar consulta externa", type=["csv"])
 
 if uploaded_file is not None:
     # Cargar datos
@@ -131,7 +131,7 @@ if uploaded_file is not None:
     st.subheader("📋 Datos Procesados")
     st.dataframe(rri_df)
 else:
-    st.info("📥 Por favor, sube un archivo CSV para analizar los datos.")
+    st.info("📥 Por favor, sube un archivo CSV para analizar los datos de la emergencia.")
 
 def cargar_datos(archivo):
     """Carga y limpia el archivo CSV subido por el usuario."""
