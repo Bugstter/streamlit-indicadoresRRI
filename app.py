@@ -70,9 +70,13 @@ if uploaded_file is not None:
     ce_efectivas_con_retorno = ce_efectivas_filtrado[ce_efectivas_filtrado['posee_retorno'] == 'si']
     percent_ce_efectivas_con_retorno = (len(ce_efectivas_con_retorno) / len(ce_efectivas_filtrado)) * 100 if len(ce_efectivas_filtrado) > 0 else 0
 
-    # 6. % Referencias enviadas a CE no agendadas
-    ce_no_agendadas = ce_total[ce_total['fecha_cita_destino'].isna()]
-    percent_ce_no_agendadas = (len(ce_no_agendadas) / len(ce_no_rechazadas)) * 100 if len(ce_no_rechazadas) > 0 else 0
+    # 10. % de referencias recibidas en CE no agendadas
+    referencias_no_rechazadas = rri_df[rri_df['referencia_rechazada'] == "no"] # Changed df to rri_df and "No" to "no"
+    referencias_no_agendadas = referencias_no_rechazadas[referencias_no_rechazadas['fecha_cita_destino'].isna()]
+    if len(referencias_no_rechazadas) > 0:
+    percent_ce_recibidas_no_agendadas = (len(referencias_no_agendadas) / len(referencias_no_rechazadas)) * 100 # Define the variable here
+    else:
+    percent_ce_recibidas_no_agendadas = 0 
 
     # 7. % Referencias a CE evaluadas como oportunas**
     ce_oportunas = ce_efectivas_filtrado[ce_efectivas_filtrado['referencia_oportuna'] == 'si']
