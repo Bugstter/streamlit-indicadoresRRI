@@ -78,10 +78,10 @@ if uploaded_file is not None:
     referencias_no_agendadas = referencias_no_rechazadas[referencias_no_rechazadas['fecha_cita_destino'].isna()]
 
     # Calcular el porcentaje según el constructo del indicador
-        if len(referencias_no_rechazadas) > 0:
-    percent_ce_recibidas_no_agendadas = (len(referencias_no_agendadas) / len(referencias_no_rechazadas)) * 100
+    if len(referencias_no_rechazadas) > 0:
+        percent_ce_recibidas_no_agendadas = (len(referencias_no_agendadas) / len(referencias_no_rechazadas)) * 100
     else:
-    percent_ce_recibidas_no_agendadas = 0
+        percent_ce_recibidas_no_agendadas = 0
 
     # 7. % Referencias a CE evaluadas como oportunas**
     ce_oportunas = ce_efectivas_filtrado[ce_efectivas_filtrado['referencia_oportuna'] == 'si']
