@@ -72,7 +72,12 @@ if uploaded_file is not None:
     
     # 6. % de referencias recibidas en CE no agendadas
     # Filtrar referencias NO rechazadas
-    referencias_no_rechazadas = df[df['referencia_rechazada'] == "no"]
+    # Asegurar que la columna 'referencia_rechazada' existe
+    if 'referencia_rechazada' not in df.columns:
+        st.error("La columna 'referencia_rechazada' no se encuentra en el archivo.")
+    else:
+        referencias_no_rechazadas = df[df['referencia_rechazada'] == "no"]
+        st.write("Datos cargados exitosamente")
 
     # Filtrar referencias NO agendadas (sin fecha de cita asignada)
     referencias_no_agendadas = referencias_no_rechazadas[referencias_no_rechazadas['fecha_cita_destino'].isna()]
