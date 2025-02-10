@@ -181,7 +181,7 @@ def graficar_indicadores(indicadores):
     st.pyplot(plt)
 
 # Configuración de la app en Streamlit
-st.title("Dashboard de Análisis de Referencias en Unidad de Emergencia")
+st.title("Análisis de Referencias en Unidad de Emergencia")
 st.write("Sube un archivo CSV para analizar las referencias en unidad de emergencia.")
 
 archivo = st.file_uploader("Subir archivo CSV", type=["csv"])
