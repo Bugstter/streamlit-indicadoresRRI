@@ -93,7 +93,7 @@ if uploaded_file is not None:
         "% Referencias de CE sin notificación": percent_ce_sin_notificacion,
         "% Referencias de CE efectivas": percent_ce_efectivas,
         "% Referencias de CE efectivas con retorno": percent_ce_efectivas_con_retorno,
-        "% Referencias enviadas a CE no agendadas": percent_ce_no_agendadas,
+        "% de referencias recibidas en CE no agendadas": percent_ce_recibidas_no_agendadas, 
         "% Referencias a CE evaluadas como oportunas": percent_ce_oportunas,
         "% Referencias enviadas a CE evaluadas como pertinentes": percent_ce_pertinentes,
         "Total de referencias enviadas": total_references_sent
