@@ -30,19 +30,20 @@ def graficar_indicadores(indicadores, titulo):
     ax.invert_yaxis()
     st.pyplot(fig)
 
-# Función indicadores CE
+# Consulta Externa
 def calcular_indicadores_ce(df):
     fecha_hoy = datetime.datetime.today()
 
     df['paciente_notificado'] = df['paciente_notificado'].replace(['nan', '', ' '], np.nan).str.strip()
-    df.loc[
-        (df['fecha_cita_destino'].notna()) & 
-        (df['area_remision'] == 'consulta') & 
-        (df['paciente_notificado'].isna()), 
-        'paciente_notificado'
-    ] = 'no'
+    condicion_imputacion = (
+        (df['fecha_cita_destino'].notna()) &
+        (df['area_remision'] == 'consulta') &
+        (df['paciente_notificado'].isna())
+    )
+    df.loc[condicion_imputacion, 'paciente_notificado'] = 'no'
 
     total_references_sent = len(df)
+
     ce_rechazadas = df[df['referencia_rechazada'] == 'si']
     percent_ce_rechazadas = (len(ce_rechazadas) / total_references_sent) * 100 if total_references_sent > 0 else 0
 
@@ -87,27 +88,29 @@ def calcular_indicadores_ce(df):
     }
     return indicadores
 
-# Función indicadores UE
+# Unidad de Emergencia
 def calcular_indicadores_ue(df):
     emergencia_total = df[df['area_remision'] == 'emergencia']
     referencias_pertinentes = emergencia_total[emergencia_total['referencia_pertinente'].isin(['si', 'no'])]
+
     percent_referencias_emergencia_efectivas = (len(referencias_pertinentes) / len(emergencia_total)) * 100 if len(emergencia_total) > 0 else 0
 
-    retorno = referencias_pertinentes[referencias_pertinentes["posee_retorno"] == "si"]
-    percent_pertinentes_retorno = (len(retorno) / len(referencias_pertinentes)) * 100 if len(referencias_pertinentes) > 0 else 0
+    referencias_pertinentes_con_posee_retorno = referencias_pertinentes[referencias_pertinentes["posee_retorno"] == "si"]
+    percent_referencias_pertinentes_con_posee_retorno = (len(referencias_pertinentes_con_posee_retorno) / len(referencias_pertinentes)) * 100 if len(referencias_pertinentes) > 0 else 0
 
-    total_referencias_pertinentes = len(referencias_pertinentes)
-    oportunas = referencias_pertinentes[referencias_pertinentes["referencia_oportuna"] == "si"]
-    pertinentes = referencias_pertinentes[referencias_pertinentes["referencia_pertinente"] == "si"]
-    
-    percent_ue_oportunas = (len(oportunas) / total_referencias_pertinentes) * 100 if total_referencias_pertinentes > 0 else 0
-    percent_ue_pertinentes = (len(pertinentes) / total_referencias_pertinentes) * 100 if total_referencias_pertinentes > 0 else 0
+    ue_pertinentes = df[(df['area_remision'] == 'emergencia') & (df['referencia_pertinente'].isin(["si", "no"]))]
+    total_referencias_pertinentes = len(ue_pertinentes)
+    num_referencias_oportunas_pertinentes = len(ue_pertinentes[ue_pertinentes["referencia_oportuna"] == "si"])
+    percent_ue_oportunas = (num_referencias_oportunas_pertinentes / total_referencias_pertinentes) * 100 if total_referencias_pertinentes > 0 else 0
+
+    num_referencias_pertinentes = len(ue_pertinentes[ue_pertinentes["referencia_pertinente"] == "si"])
+    percent_ue_pertinentes = (num_referencias_pertinentes / total_referencias_pertinentes) * 100 if total_referencias_pertinentes > 0 else 0
 
     indicadores = {
         "% Referencias de emergencia efectivas": percent_referencias_emergencia_efectivas,
         "% Referencias enviadas a UE evaluadas como oportunas": percent_ue_oportunas,
         "% Referencias enviadas a UE evaluadas como pertinentes": percent_ue_pertinentes,
-        "% Referencias pertinentes con retorno (Posee Retorno)": percent_pertinentes_retorno
+        "% Referencias pertinentes con retorno (Posee Retorno)": percent_referencias_pertinentes_con_posee_retorno
     }
     return indicadores
 
