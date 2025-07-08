@@ -4,201 +4,132 @@ import matplotlib.pyplot as plt
 import numpy as np
 import datetime
 
- st.title("Análisis de Referencias en Consulta Externa")
+st.set_page_config(layout="wide")
+st.title("📈 Análisis de Referencias por Área de Atención")
 
-    st.subheader("📌 Indicadores Calculados")
-    st.dataframe(pd.DataFrame.from_dict(indicators, orient='index', columns=['Valor (%)' if '%' in k else 'Cantidad']))
+# Función común para cargar y limpiar datos
+def cargar_datos(archivo):
+    df = pd.read_csv(archivo, low_memory=False)
+    df.columns = df.columns.str.lower()
+    columnas_texto = ['atencion_origen', 'referencia_rechazada', 'referencia_oportuna', 'referencia_efectiva',
+                      'retorno_cont_seguimiento', 'motivo_no_notificacion', 'area_origen', 'area_remision',
+                      'posee_retorno', 'paciente_notificado', 'referencia_pertinente']
+    for col in columnas_texto:
+        if col in df.columns:
+            df[col] = df[col].astype(str).str.lower().str.strip()
+    df['fecha_cita_destino'] = pd.to_datetime(df['fecha_cita_destino'], errors='coerce')
+    return df
 
-    st.subheader("📊 Gráfico de Indicadores de Consulta Externa")
-    fig_ce, ax_ce = plt.subplots(figsize=(10, 5))
-    ax_ce.barh(labels, values)
-    ax_ce.set_xlabel("Porcentaje (%)")
-    ax_ce.set_title("Indicadores de Referencias en Consulta Externa")
-    ax_ce.invert_yaxis()
-    st.pyplot(fig_ce)
+# Función de gráfico
+def graficar_indicadores(indicadores, titulo):
+    fig, ax = plt.subplots(figsize=(10, 5))
+    porcentajes = {k: v for k, v in indicadores.items() if "%" in k}
+    ax.barh(list(porcentajes.keys()), list(porcentajes.values()))
+    ax.set_xlabel("Porcentaje (%)")
+    ax.set_title(titulo)
+    ax.invert_yaxis()
+    st.pyplot(fig)
 
-# Subir archivo CSV
-uploaded_file = st.file_uploader("📂 Subir archivo CSV para analizar consulta externa", type=["csv"])
-
-if uploaded_file is not None:
-    # Cargar datos
-    rri_df = pd.read_csv(uploaded_file, low_memory=False)
-    rri_df.columns = rri_df.columns.str.lower()  # Convertir nombres de columnas a minúsculas
-
-    # Normalizar columnas de texto
-    columns_to_clean = ['atencion_origen', 'referencia_rechazada', 'referencia_oportuna', 'referencia_efectiva', 
-                        'retorno_cont_seguimiento', 'motivo_no_notificacion', 'area_origen', 'area_remision', 
-                        'posee_retorno', 'paciente_notificado', 'referencia_pertinente']
-    
-    for column in columns_to_clean:
-        if column in rri_df.columns:
-            rri_df[column] = rri_df[column].astype(str).str.lower().str.strip()
-
-    # Convertir fechas
-    rri_df['fecha_cita_destino'] = pd.to_datetime(rri_df['fecha_cita_destino'], errors='coerce')
-    
-    # Obtener la fecha actual
+# Función indicadores CE
+def calcular_indicadores_ce(df):
     fecha_hoy = datetime.datetime.today()
 
-    # Limpieza de 'paciente_notificado'
-    rri_df['paciente_notificado'] = rri_df['paciente_notificado'].replace(['nan', '', ' '], np.nan).str.strip()
-    
-    # Imputar "no" en 'paciente_notificado' cuando aplica
-    condicion_imputacion = (
-        (rri_df['fecha_cita_destino'].notna()) &
-        (rri_df['area_remision'] == 'consulta') &
-        (rri_df['paciente_notificado'].isna())
-    )
-    rri_df.loc[condicion_imputacion, 'paciente_notificado'] = 'no'
+    df['paciente_notificado'] = df['paciente_notificado'].replace(['nan', '', ' '], np.nan).str.strip()
+    df.loc[
+        (df['fecha_cita_destino'].notna()) & 
+        (df['area_remision'] == 'consulta') & 
+        (df['paciente_notificado'].isna()), 
+        'paciente_notificado'
+    ] = 'no'
 
-    # Calcular indicadores
-    total_references_sent = len(rri_df)
-    
-    # 1. % Referencias de CE Rechazadas
-    ce_rechazadas = rri_df[rri_df['referencia_rechazada'] == 'si']
+    total_references_sent = len(df)
+    ce_rechazadas = df[df['referencia_rechazada'] == 'si']
     percent_ce_rechazadas = (len(ce_rechazadas) / total_references_sent) * 100 if total_references_sent > 0 else 0
 
-    # 2. % Referencias de CE Agendadas
-    ce_total = rri_df[rri_df['area_origen'] == 'consulta externa']
+    ce_total = df[df['area_origen'] == 'consulta externa']
     ce_no_rechazadas = ce_total[ce_total['referencia_rechazada'] != 'si']
     ce_agendadas = ce_no_rechazadas[ce_no_rechazadas['fecha_cita_destino'].notna()]
     percent_ce_agendadas = (len(ce_agendadas) / len(ce_no_rechazadas)) * 100 if len(ce_no_rechazadas) > 0 else 0
 
-    # 3. % Referencias de CE sin registro de notificación
-    ce_agendadas = ce_total[(ce_total['area_remision'] == 'consulta') & (ce_total['fecha_cita_destino'].notna())]
-    ce_sin_notificacion = ce_agendadas[ce_agendadas['paciente_notificado'] == 'no']
-    percent_ce_sin_notificacion = (len(ce_sin_notificacion) / len(ce_agendadas)) * 100 if len(ce_agendadas) > 0 else 0
+    ce_agendadas_notif = ce_total[(ce_total['area_remision'] == 'consulta') & (ce_total['fecha_cita_destino'].notna())]
+    ce_sin_notificacion = ce_agendadas_notif[ce_agendadas_notif['paciente_notificado'] == 'no']
+    percent_ce_sin_notificacion = (len(ce_sin_notificacion) / len(ce_agendadas_notif)) * 100 if len(ce_agendadas_notif) > 0 else 0
 
-    # 4. % Referencias de CE efectivas (filtrado por fecha)
-    rri_df_filtrado = rri_df[rri_df['fecha_cita_destino'] < fecha_hoy]
-    ce_no_rechazadas_filtrado = rri_df_filtrado[rri_df_filtrado['referencia_rechazada'] != 'si']
+    df_filtrado = df[df['fecha_cita_destino'] < fecha_hoy]
+    ce_no_rechazadas_filtrado = df_filtrado[df_filtrado['referencia_rechazada'] != 'si']
     ce_efectivas_filtrado = ce_no_rechazadas_filtrado[ce_no_rechazadas_filtrado['referencia_efectiva'] == 'si']
     percent_ce_efectivas = (len(ce_efectivas_filtrado) / len(ce_no_rechazadas_filtrado)) * 100 if len(ce_no_rechazadas_filtrado) > 0 else 0
 
-    # 5. % Referencias de CE efectivas con retorno
-    rri_df_filtrado['posee_retorno'] = rri_df_filtrado['posee_retorno'].astype(str).str.lower().str.strip()
+    df_filtrado['posee_retorno'] = df_filtrado['posee_retorno'].astype(str).str.lower().str.strip()
     ce_efectivas_con_retorno = ce_efectivas_filtrado[ce_efectivas_filtrado['posee_retorno'] == 'si']
     percent_ce_efectivas_con_retorno = (len(ce_efectivas_con_retorno) / len(ce_efectivas_filtrado)) * 100 if len(ce_efectivas_filtrado) > 0 else 0
-    
-    # 6. % de referencias recibidas en CE no agendadas
-    # Filtrar referencias NO rechazadas
-    referencias_no_rechazadas = rri_df[rri_df['referencia_rechazada'] == "no"] # Changed df to rri_df and "No" to "no"
 
-    # Filtrar referencias NO agendadas (sin fecha de cita asignada)
+    referencias_no_rechazadas = df[df['referencia_rechazada'] == "no"]
     referencias_no_agendadas = referencias_no_rechazadas[referencias_no_rechazadas['fecha_cita_destino'].isna()]
+    percent_ce_recibidas_no_agendadas = (len(referencias_no_agendadas) / len(referencias_no_rechazadas)) * 100 if len(referencias_no_rechazadas) > 0 else 0
 
-    # Calcular el porcentaje según el constructo del indicador
-    if len(referencias_no_rechazadas) > 0:
-        percent_ce_recibidas_no_agendadas = (len(referencias_no_agendadas) / len(referencias_no_rechazadas)) * 100 # Define the variable here
-    else:
-        percent_ce_recibidas_no_agendadas = 0 
-
-    # 7. % Referencias a CE evaluadas como oportunas**
     ce_oportunas = ce_efectivas_filtrado[ce_efectivas_filtrado['referencia_oportuna'] == 'si']
     percent_ce_oportunas = (len(ce_oportunas) / len(ce_efectivas_filtrado)) * 100 if len(ce_efectivas_filtrado) > 0 else 0
 
-    # 8. % Referencias a CE evaluadas como pertinentes**
     ce_pertinentes = ce_efectivas_filtrado[ce_efectivas_filtrado['referencia_pertinente'] == 'si']
     percent_ce_pertinentes = (len(ce_pertinentes) / len(ce_efectivas_filtrado)) * 100 if len(ce_efectivas_filtrado) > 0 else 0
 
-    # Crear un diccionario con los indicadores
-    indicators = {
+    indicadores = {
         "% Referencias de CE Rechazadas": percent_ce_rechazadas,
         "% Referencias de CE Agendadas": percent_ce_agendadas,
         "% Referencias de CE sin notificación": percent_ce_sin_notificacion,
         "% Referencias de CE efectivas": percent_ce_efectivas,
         "% Referencias de CE efectivas con retorno": percent_ce_efectivas_con_retorno,
-        "% de referencias recibidas en CE no agendadas": percent_ce_recibidas_no_agendadas, 
+        "% de referencias recibidas en CE no agendadas": percent_ce_recibidas_no_agendadas,
         "% Referencias a CE evaluadas como oportunas": percent_ce_oportunas,
         "% Referencias enviadas a CE evaluadas como pertinentes": percent_ce_pertinentes,
         "Total de referencias enviadas": total_references_sent
-        
     }
+    return indicadores
 
-    # Mostrar métricas en Streamlit
-    st.subheader("📌 Indicadores Clave")
-    for key, value in indicators.items():
-        if "%" in key:
-            st.metric(label=key, value=f"{value:.2f}%")
-        else:
-            st.metric(label=key, value=value)
-
-    # Generar gráfico de indicadores en Streamlit
-    st.subheader("📊 Gráfico de Indicadores")
-
-    percentage_indicators = {k: v for k, v in indicators.items() if '%' in k}
-    labels = list(percentage_indicators.keys())
-    values = list(percentage_indicators.values())
-
-    fig, ax = plt.subplots(figsize=(10, 6))
-    ax.barh(labels, values)
-    ax.set_xlabel("Porcentaje (%)")
-    ax.set_title("Indicadores de Referencias")
-    ax.invert_yaxis()
-    st.pyplot(fig)
-
-    # Mostrar DataFrame en Streamlit
-    st.subheader("📋 Datos Procesados")
-    st.dataframe(rri_df)
-else:
-    st.info("📥 Por favor, sube un archivo CSV para analizar los datos de la emergencia.")
-
-def cargar_datos(archivo):
-    """Carga y limpia el archivo CSV subido por el usuario."""
-    df = pd.read_csv(archivo, low_memory=False)
-    df.columns = df.columns.str.lower()
-    for column in ['atencion_origen', 'referencia_rechazada', 'referencia_oportuna', 'referencia_efectiva',
-                   'retorno_cont_seguimiento', 'motivo_no_notificacion', 'area_origen', 'area_remision',
-                   'posee_retorno', 'paciente_notificado', 'referencia_pertinente']:
-        if column in df.columns:
-            df[column] = df[column].astype(str).str.lower().str.strip()
-    df['fecha_cita_destino'] = pd.to_datetime(df['fecha_cita_destino'], errors='coerce')
-    return df
-
+# Función indicadores UE
 def calcular_indicadores_ue(df):
-    """Calcula los indicadores para Unidad de Emergencia."""
     emergencia_total = df[df['area_remision'] == 'emergencia']
     referencias_pertinentes = emergencia_total[emergencia_total['referencia_pertinente'].isin(['si', 'no'])]
     percent_referencias_emergencia_efectivas = (len(referencias_pertinentes) / len(emergencia_total)) * 100 if len(emergencia_total) > 0 else 0
+
+    retorno = referencias_pertinentes[referencias_pertinentes["posee_retorno"] == "si"]
+    percent_pertinentes_retorno = (len(retorno) / len(referencias_pertinentes)) * 100 if len(referencias_pertinentes) > 0 else 0
+
+    total_referencias_pertinentes = len(referencias_pertinentes)
+    oportunas = referencias_pertinentes[referencias_pertinentes["referencia_oportuna"] == "si"]
+    pertinentes = referencias_pertinentes[referencias_pertinentes["referencia_pertinente"] == "si"]
     
-    referencias_pertinentes_con_posee_retorno = referencias_pertinentes[referencias_pertinentes["posee_retorno"] == "si"]
-    percent_referencias_pertinentes_con_posee_retorno = (len(referencias_pertinentes_con_posee_retorno) / len(referencias_pertinentes)) * 100 if len(referencias_pertinentes) > 0 else 0
-    
-    ue_pertinentes = df[(df['area_remision'] == 'emergencia') & (df['referencia_pertinente'].isin(["si", "no"]))]
-    total_referencias_pertinentes = len(ue_pertinentes)
-    num_referencias_oportunas_pertinentes = len(ue_pertinentes[ue_pertinentes["referencia_oportuna"] == "si"])
-    percent_ue_oportunas = (num_referencias_oportunas_pertinentes / total_referencias_pertinentes) * 100 if total_referencias_pertinentes > 0 else 0
-    
-    num_referencias_pertinentes = len(ue_pertinentes[ue_pertinentes["referencia_pertinente"] == "si"])
-    percent_ue_pertinentes = (num_referencias_pertinentes / total_referencias_pertinentes) * 100 if total_referencias_pertinentes > 0 else 0
-    
+    percent_ue_oportunas = (len(oportunas) / total_referencias_pertinentes) * 100 if total_referencias_pertinentes > 0 else 0
+    percent_ue_pertinentes = (len(pertinentes) / total_referencias_pertinentes) * 100 if total_referencias_pertinentes > 0 else 0
+
     indicadores = {
         "% Referencias de emergencia efectivas": percent_referencias_emergencia_efectivas,
         "% Referencias enviadas a UE evaluadas como oportunas": percent_ue_oportunas,
         "% Referencias enviadas a UE evaluadas como pertinentes": percent_ue_pertinentes,
-        "% Referencias pertinentes con retorno (Posee Retorno)": percent_referencias_pertinentes_con_posee_retorno
+        "% Referencias pertinentes con retorno (Posee Retorno)": percent_pertinentes_retorno
     }
     return indicadores
 
-def graficar_indicadores(indicadores):
-    """Genera un gráfico de barras horizontal con los indicadores calculados."""
-    plt.figure(figsize=(10, 5))
-    plt.barh(list(indicadores.keys()), list(indicadores.values()))
-    plt.xlabel('Porcentaje (%)')
-    plt.title('Indicadores de Referencias en Unidad de Emergencia')
-    plt.gca().invert_yaxis()
-    plt.tight_layout()
-    st.pyplot(plt)
+# Tabs para CE y UE
+tab1, tab2 = st.tabs(["🏥 Consulta Externa", "🚨 Unidad de Emergencia"])
 
-# Configuración de la app en Streamlit
-st.title("Análisis de Referencias en Unidad de Emergencia")
-st.write("Sube un archivo CSV para analizar las referencias en unidad de emergencia.")
+with tab1:
+    st.subheader("📂 Subir archivo para análisis de Consulta Externa")
+    archivo_ce = st.file_uploader("Archivo CSV", type=["csv"], key="ce")
+    if archivo_ce:
+        df_ce = cargar_datos(archivo_ce)
+        indicadores_ce = calcular_indicadores_ce(df_ce)
+        st.write("### Indicadores Calculados")
+        st.dataframe(pd.DataFrame.from_dict(indicadores_ce, orient='index', columns=['Valor']))
+        graficar_indicadores(indicadores_ce, "Indicadores de Referencias en Consulta Externa")
 
-archivo = st.file_uploader("Subir archivo CSV", type=["csv"])
-
-if archivo is not None:
-    df = cargar_datos(archivo)
-    indicadores = calcular_indicadores_ue(df)
-    st.write("### Indicadores Calculados")
-    st.write(pd.DataFrame.from_dict(indicadores, orient='index', columns=['Valor']))
-    graficar_indicadores(indicadores)
+with tab2:
+    st.subheader("📂 Subir archivo para análisis de Unidad de Emergencia")
+    archivo_ue = st.file_uploader("Archivo CSV", type=["csv"], key="ue")
+    if archivo_ue:
+        df_ue = cargar_datos(archivo_ue)
+        indicadores_ue = calcular_indicadores_ue(df_ue)
+        st.write("### Indicadores Calculados")
+        st.dataframe(pd.DataFrame.from_dict(indicadores_ue, orient='index', columns=['Valor']))
+        graficar_indicadores(indicadores_ue, "Indicadores de Referencias en Unidad de Emergencia")
