@@ -4,8 +4,18 @@ import matplotlib.pyplot as plt
 import numpy as np
 import datetime
 
-# Configurar título de la app
-st.title("📊 Indicadores de Referencias CE")
+ st.title("Análisis de Referencias en Consulta Externa")
+
+    st.subheader("📌 Indicadores Calculados")
+    st.dataframe(pd.DataFrame.from_dict(indicators, orient='index', columns=['Valor (%)' if '%' in k else 'Cantidad']))
+
+    st.subheader("📊 Gráfico de Indicadores de Consulta Externa")
+    fig_ce, ax_ce = plt.subplots(figsize=(10, 5))
+    ax_ce.barh(labels, values)
+    ax_ce.set_xlabel("Porcentaje (%)")
+    ax_ce.set_title("Indicadores de Referencias en Consulta Externa")
+    ax_ce.invert_yaxis()
+    st.pyplot(fig_ce)
 
 # Subir archivo CSV
 uploaded_file = st.file_uploader("📂 Subir archivo CSV para analizar consulta externa", type=["csv"])
