@@ -69,18 +69,12 @@ def calcular_indicadores_ce(df):
 
     # --- 3. CE sin notificación
     ce_agend_notif = ce_total[
-    (ce_total['area_remision'] == 'consulta') &
-    (ce_total['fecha_cita_destino'].notna())
-]
-
-num_sin_notif = len(
-    ce_agend_notif[
-        ce_agend_notif['paciente_notificado'].isna() |
-        (ce_agend_notif['paciente_notificado'].astype(str).str.strip() == '')
+        (ce_total['area_remision'] == 'consulta') &
+        (ce_total['fecha_cita_destino'].notna())
     ]
-)
-den_sin_notif = len(ce_agend_notif)
-pct_sin_notif = (num_sin_notif / den_sin_notif * 100) if den_sin_notif else 0
+    num_sin_notif = len(ce_agend_notif[ce_agend_notif['paciente_notificado'] == 'no'])
+    den_sin_notif = len(ce_agend_notif)
+    pct_sin_notif = (num_sin_notif / den_sin_notif * 100) if den_sin_notif else 0
 
     # --- 4. CE efectivas
     df_pasadas = df[df['fecha_cita_destino'] < hoy]
