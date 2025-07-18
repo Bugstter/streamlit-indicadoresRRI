@@ -72,10 +72,10 @@ def calcular_indicadores_ce(df):
     (ce_total['area_remision'] == 'consulta') &
     (ce_total['fecha_cita_destino'].notna())
     ]
-    
-    num_sin_notif = len(ce_agend_notif[
-    ce_agend_notif['paciente_notificado'].astype(str).str.strip().replace('nan', '').replace('None', '') == ""
-])
+
+    num_sin_notif = ce_agend_notif['paciente_notificado'].apply(
+    lambda x: pd.isna(x) or str(x).strip().lower() in ['', 'none', 'nan']
+    ).sum()
 
     den_sin_notif = len(ce_agend_notif)
     pct_sin_notif = (num_sin_notif / den_sin_notif * 100) if den_sin_notif else 0
