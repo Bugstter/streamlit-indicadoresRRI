@@ -51,8 +51,7 @@ def calcular_indicadores_ce(df):
         (df['area_remision'] == 'consulta') &
         (df['paciente_notificado'].isna())
     )
-    df.loc[cond_imput, 'paciente_notificado'] = 'no'
-
+    
     total_env = len(df)
 
     # --- 1. CE rechazadas
